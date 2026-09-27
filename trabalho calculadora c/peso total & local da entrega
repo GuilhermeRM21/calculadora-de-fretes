@@ -1,0 +1,45 @@
+#include <stdio.h>
+#include <string.h>
+#include <locale.h>
+
+int main(void){
+	int quantidadeItens;
+	int i;
+	float pesoTotal = 0.0;
+	float pesoItem;
+	char localEntrega[100];
+	
+	printf("=== Calculo do Peso Total da Compra===\n");
+	printf("Quantos itens desaja informar? ");
+	scanf("%d", &quantidadeItens);
+	
+	if (quantidadeItens <=0){
+		printf("Quantidade invalida. O programa sera encerrado.\n");
+		return 1;
+	}
+	
+	for (i=1; i <=quantidadeItens; i++){
+		printf("Peso do item %d (em kg): ", i);
+		scanf("%f", &pesoItem);
+		
+		if (pesoItem < 0){
+			printf("Peso invalido! Considerando como 0 kg.\n");
+			pesoItem = 0;
+		}	
+		pesoTotal += pesoItem;
+	}
+	
+	while (getchar() != '\n');
+	
+	printf("Digite o local de entrega ");
+	fgets(localEntrega, sizeof(localEntrega), stdin);
+	
+	localEntrega[strcspn(localEntrega, "\n")] = '\0';
+	
+	printf("\n--------------------------------\n");
+	printf("Peso total da compra: %.2f kg\n", pesoTotal);
+	printf("Local de entrega    : %s\n", localEntrega);
+    printf("\n--------------------------------\n");
+    
+    return 0;
+}
