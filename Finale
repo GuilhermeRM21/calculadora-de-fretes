@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <locale.h>
+#include <time.h>
 
-/* Valores usados no calculo do frete */
+/* Valores usados no calculo do frete (parte fixa + por kg) */
 #define FRETE_TAXA_FIXA   10.00
 #define FRETE_POR_KG       2.50
-#define FRETE_POR_KM       0.15
 
 #define TOTAL_PRODUTOS 4
+#define TOTAL_REGIOES  4
 
 /* Dados dos produtos - globais para serem usados em qualquer funcao */
 char codigo[TOTAL_PRODUTOS][4] = {
@@ -38,9 +39,55 @@ float preco[TOTAL_PRODUTOS] = {
     9.50
 };
 
+/* Tabela de regioes de entrega - estimativa fixa, independente de calculo
+   de distancia real. Ajuste os nomes, valores de frete e prazos conforme
+   a realidade da sua loja (Rua Cordura, 550). */
+char regiaoNome[TOTAL_REGIOES][30] = {
+    "Mesmo bairro da loja",
+    "Mesma cidade",
+    "Regiao metropolitana",
+    "Outro estado"
+};
+
+float regiaoFrete[TOTAL_REGIOES] = {
+    5.00,
+    15.00,
+    30.00,
+    60.00
+};
+
+int regiaoPrazoDias[TOTAL_REGIOES] = {
+    1,
+    2,
+    4,
+    8
+};
+
+/* Mostra o menu de regioes e devolve o indice escolhido (0 a TOTAL_REGIOES-1) */
+void somarDiasUteis(struct tm *data, int diasUteis);
+
+int escolherRegiao() {
+    int opcao;
+    int i;
+
+    printf("\nEscolha a regiao de entrega:\n");
+    for (i = 0; i < TOTAL_REGIOES; i++) {
+        printf("  %d - %s (frete: R$ %.2f | prazo: %d dia(s) util(eis))\n",
+               i + 1, regiaoNome[i], regiaoFrete[i], regiaoPrazoDias[i]);
+    }
+    printf("Opcao: ");
+    scanf("%d", &opcao);
+
+    while (opcao < 1 || opcao > TOTAL_REGIOES) {
+        printf("Opcao invalida! Escolha entre 1 e %d: ", TOTAL_REGIOES);
+        scanf("%d", &opcao);
+    }
+
+    return opcao - 1;
+}
+
 /* Funcao separada para o calculo da compra completa: itens (por codigo),
-   peso, preco dos produtos, preco do frete e preco total.
-   (antes estava como um segundo main(), o que nao e permitido em C) */
+   peso, preco dos produtos, preco do frete (por regiao) e preco total. */
 void calcularPesoTotal() {
     int quantidadeItens;
     int i, j;
@@ -48,7 +95,9 @@ void calcularPesoTotal() {
     float precoProdutosTotal = 0.0;
     float precoFrete;
     float precoTotalCompra;
-    float distancia;
+    int regiaoIdx;
+    int diaPedido, mesPedido, anoPedido;
+    struct tm dataPedido = {0};
     char localEntrega[100];
 
     /* Ate 20 itens comprados, guardando o indice do produto e o peso escolhido */
@@ -124,19 +173,32 @@ void calcularPesoTotal() {
     fgets(localEntrega, sizeof(localEntrega), stdin);
     localEntrega[strcspn(localEntrega, "\n")] = '\0';
 
-    printf("Distancia ate o local de entrega (em km): ");
-    scanf("%f", &distancia);
-    while (getchar() != '\n');
+    regiaoIdx = escolherRegiao();
 
-    if (distancia < 0) {
-        printf("Distancia invalida! Considerando como 0 km.\n");
-        distancia = 0;
-    }
-
-    /* Calculo do frete: taxa fixa + valor por kg + valor por km */
-    precoFrete = FRETE_TAXA_FIXA + (pesoTotal * FRETE_POR_KG) + (distancia * FRETE_POR_KM);
+    /* Calculo do frete: taxa fixa + valor por kg + valor fixo da regiao escolhida
+       (nao depende de calculo de distancia real, so da estimativa da tabela) */
+    precoFrete = FRETE_TAXA_FIXA + (pesoTotal * FRETE_POR_KG) + regiaoFrete[regiaoIdx];
 
     precoTotalCompra = precoProdutosTotal + precoFrete;
+
+    /* Data do pedido e calculo da data prevista de entrega */
+    printf("\nDia do pedido (1-31): ");
+    scanf("%d", &diaPedido);
+    printf("Mes do pedido (1-12): ");
+    scanf("%d", &mesPedido);
+    printf("Ano do pedido (ex: 2026): ");
+    scanf("%d", &anoPedido);
+
+    if (diaPedido < 1 || diaPedido > 31 || mesPedido < 1 || mesPedido > 12) {
+        printf("\nData invalida! Usando o prazo sem data de referencia.\n");
+        diaPedido = 0;
+    } else {
+        dataPedido.tm_mday = diaPedido;
+        dataPedido.tm_mon  = mesPedido - 1;
+        dataPedido.tm_year = anoPedido - 1900;
+        dataPedido.tm_hour = 12;
+        somarDiasUteis(&dataPedido, regiaoPrazoDias[regiaoIdx]);
+    }
 
     printf("\n--------------------------------\n");
     printf("ITENS COMPRADOS:\n");
@@ -147,12 +209,35 @@ void calcularPesoTotal() {
     printf("--------------------------------\n");
     printf("Peso total da compra : %.2f kg\n", pesoTotal);
     printf("Local de entrega     : %s\n", localEntrega);
-    printf("Distancia da entrega : %.2f km\n", distancia);
+    printf("Regiao de entrega    : %s\n", regiaoNome[regiaoIdx]);
+    printf("Prazo de entrega     : %d dia(s) util(eis)\n", regiaoPrazoDias[regiaoIdx]);
+    if (diaPedido != 0) {
+        printf("Data do pedido       : %02d/%02d/%04d\n", diaPedido, mesPedido, anoPedido);
+        printf("Data prevista entrega: %02d/%02d/%04d\n",
+               dataPedido.tm_mday, dataPedido.tm_mon + 1, dataPedido.tm_year + 1900);
+    }
     printf("--------------------------------\n");
     printf("Preco dos produtos   : R$ %.2f\n", precoProdutosTotal);
     printf("Preco do frete       : R$ %.2f\n", precoFrete);
     printf("PRECO TOTAL DA COMPRA: R$ %.2f\n", precoTotalCompra);
     printf("--------------------------------\n");
+}
+
+/* Soma 'diasUteis' dias uteis (pulando sabado e domingo) a partir de uma data,
+   usando mktime para normalizar automaticamente mes/ano quando necessario. */
+void somarDiasUteis(struct tm *data, int diasUteis) {
+    int adicionados = 0;
+
+    mktime(data); /* normaliza e calcula o dia da semana (tm_wday) */
+
+    while (adicionados < diasUteis) {
+        data->tm_mday += 1;
+        mktime(data); /* normaliza de novo e atualiza tm_wday */
+
+        if (data->tm_wday != 0 && data->tm_wday != 6) { /* nao e domingo(0) nem sabado(6) */
+            adicionados++;
+        }
+    }
 }
 
 int main() {
@@ -174,7 +259,7 @@ int main() {
         printf("  2 - Consultar produto por codigo\n");
         printf("  3 - Mostrar produto mais caro\n");
         printf("  4 - Mostrar produto mais pesado\n");
-        printf("  5 - Calcular peso, frete e total da compra\n");
+        printf("  5 - Calcular peso, frete, prazo e total da compra\n");
         printf("  0 - Sair\n");
         printf("========================================\n");
         printf("Digite uma opcao: ");
