@@ -1,0 +1,283 @@
+#include <stdio.h>
+#include <string.h>
+#include <locale.h>
+
+/* Valores usados no calculo do frete */
+#define FRETE_TAXA_FIXA   10.00
+#define FRETE_POR_KG       2.50
+#define FRETE_POR_KM       0.15
+
+#define TOTAL_PRODUTOS 4
+
+/* Dados dos produtos - globais para serem usados em qualquer funcao */
+char codigo[TOTAL_PRODUTOS][4] = {
+    "111",
+    "112",
+    "113",
+    "114"
+};
+
+char nome[TOTAL_PRODUTOS][20] = {
+    "Limao",
+    "Maca",
+    "Laranja",
+    "Melao"
+};
+
+float peso[TOTAL_PRODUTOS] = {
+    0.10,
+    0.20,
+    0.25,
+    1.50
+};
+
+float preco[TOTAL_PRODUTOS] = {
+    1.50,
+    3.00,
+    2.50,
+    9.50
+};
+
+/* Funcao separada para o calculo da compra completa: itens (por codigo),
+   peso, preco dos produtos, preco do frete e preco total.
+   (antes estava como um segundo main(), o que nao e permitido em C) */
+void calcularPesoTotal() {
+    int quantidadeItens;
+    int i, j;
+    float pesoTotal = 0.0;
+    float precoProdutosTotal = 0.0;
+    float precoFrete;
+    float precoTotalCompra;
+    float distancia;
+    char localEntrega[100];
+
+    /* Ate 20 itens comprados, guardando o indice do produto e o peso escolhido */
+    char codigoItens[20][4];
+    int indiceItens[20];
+    float pesoEscolhido[20];
+    float precoItens[20];
+
+    printf("\n=== Calculo da Compra (peso, frete e total) ===\n");
+    printf("Quantos itens deseja informar? ");
+    scanf("%d", &quantidadeItens);
+
+    if (quantidadeItens <= 0) {
+        printf("Quantidade invalida. Voltando ao menu.\n");
+        return;
+    }
+
+    if (quantidadeItens > 20) {
+        printf("Maximo de 20 itens. Considerando apenas 20.\n");
+        quantidadeItens = 20;
+    }
+
+    /* Primeiro pergunta o CODIGO de todos os itens */
+    printf("\n--- Codigos dos itens ---\n");
+    printf("(Codigos disponiveis: ");
+    for (i = 0; i < TOTAL_PRODUTOS; i++) {
+        printf("%s%s", codigo[i], (i < TOTAL_PRODUTOS - 1) ? ", " : ")\n");
+    }
+
+    for (i = 0; i < quantidadeItens; i++) {
+
+        int encontrado = 0;
+
+        while (!encontrado) {
+            printf("Codigo do item %d: ", i + 1);
+            scanf("%3s", codigoItens[i]);
+
+            for (j = 0; j < TOTAL_PRODUTOS; j++) {
+                if (strcmp(codigoItens[i], codigo[j]) == 0) {
+                    indiceItens[i] = j;
+                    encontrado = 1;
+                    break;
+                }
+            }
+
+            if (!encontrado) {
+                printf("Codigo nao encontrado! Tente novamente.\n");
+            }
+        }
+
+        printf("  -> %s (preco por kg: R$ %.2f)\n", nome[indiceItens[i]], preco[indiceItens[i]]);
+
+        do {
+            printf("  Quantos kg de \"%s\" voce quer? ", nome[indiceItens[i]]);
+            scanf("%f", &pesoEscolhido[i]);
+
+            if (pesoEscolhido[i] <= 0) {
+                printf("  Peso invalido! Digite um valor maior que zero.\n");
+            }
+        } while (pesoEscolhido[i] <= 0);
+
+        precoItens[i] = preco[indiceItens[i]] * pesoEscolhido[i];
+
+        printf("  -> %.2f kg de %s = R$ %.2f\n", pesoEscolhido[i], nome[indiceItens[i]], precoItens[i]);
+
+        pesoTotal += pesoEscolhido[i];
+        precoProdutosTotal += precoItens[i];
+    }
+
+    while (getchar() != '\n'); /* limpa o buffer antes do fgets */
+
+    printf("\nDigite o local de entrega: ");
+    fgets(localEntrega, sizeof(localEntrega), stdin);
+    localEntrega[strcspn(localEntrega, "\n")] = '\0';
+
+    printf("Distancia ate o local de entrega (em km): ");
+    scanf("%f", &distancia);
+    while (getchar() != '\n');
+
+    if (distancia < 0) {
+        printf("Distancia invalida! Considerando como 0 km.\n");
+        distancia = 0;
+    }
+
+    /* Calculo do frete: taxa fixa + valor por kg + valor por km */
+    precoFrete = FRETE_TAXA_FIXA + (pesoTotal * FRETE_POR_KG) + (distancia * FRETE_POR_KM);
+
+    precoTotalCompra = precoProdutosTotal + precoFrete;
+
+    printf("\n--------------------------------\n");
+    printf("ITENS COMPRADOS:\n");
+    for (i = 0; i < quantidadeItens; i++) {
+        int idx = indiceItens[i];
+        printf("  - [%s] %s: %.2f kg - R$ %.2f\n", codigo[idx], nome[idx], pesoEscolhido[i], precoItens[i]);
+    }
+    printf("--------------------------------\n");
+    printf("Peso total da compra : %.2f kg\n", pesoTotal);
+    printf("Local de entrega     : %s\n", localEntrega);
+    printf("Distancia da entrega : %.2f km\n", distancia);
+    printf("--------------------------------\n");
+    printf("Preco dos produtos   : R$ %.2f\n", precoProdutosTotal);
+    printf("Preco do frete       : R$ %.2f\n", precoFrete);
+    printf("PRECO TOTAL DA COMPRA: R$ %.2f\n", precoTotalCompra);
+    printf("--------------------------------\n");
+}
+
+int main() {
+
+    setlocale(LC_ALL, "Portuguese");
+
+    int opcao;
+    int i;
+    char codigoBusca[4];
+    int encontrado;
+
+    do {
+
+        printf("\n");
+        printf("========================================\n");
+        printf("          MENU DE PRODUTOS\n");
+        printf("========================================\n");
+        printf("  1 - Listar todos os produtos\n");
+        printf("  2 - Consultar produto por codigo\n");
+        printf("  3 - Mostrar produto mais caro\n");
+        printf("  4 - Mostrar produto mais pesado\n");
+        printf("  5 - Calcular peso, frete e total da compra\n");
+        printf("  0 - Sair\n");
+        printf("========================================\n");
+        printf("Digite uma opcao: ");
+        scanf("%d", &opcao);
+
+        switch (opcao) {
+
+            case 1:
+
+                printf("\n");
+                printf("PRODUTO\n");
+
+                for (i = 0; i < TOTAL_PRODUTOS; i++) {
+                    printf("\nCodigo : %s\n", codigo[i]);
+                    printf("Produto: %s\n", nome[i]);
+                    printf("Peso   : %.2f kg\n", peso[i]);
+                    printf("Preco  : R$ %.2f\n", preco[i]);
+                    printf("-----------------------------------------\n");
+                }
+
+                break;
+
+            case 2:
+
+                printf("\nDigite o codigo do produto: ");
+                scanf("%s", codigoBusca);
+
+                encontrado = 0;
+
+                for (i = 0; i < TOTAL_PRODUTOS; i++) {
+                    if (strcmp(codigoBusca, codigo[i]) == 0) {
+                        printf("\nPRODUTO ENCONTRADO\n");
+                        printf("Codigo : %s\n", codigo[i]);
+                        printf("Produto: %s\n", nome[i]);
+                        printf("Peso   : %.2f kg\n", peso[i]);
+                        printf("Preco  : R$ %.2f\n", preco[i]);
+
+                        encontrado = 1;
+                        break;
+                    }
+                }
+
+                if (encontrado == 0) {
+                    printf("\nProduto nao encontrado!\n");
+                }
+
+                break;
+
+            case 3: {
+
+                int idx = 0;
+
+                for (int j = 1; j < TOTAL_PRODUTOS; j++) {
+                    if (preco[j] > preco[idx]) {
+                        idx = j;
+                    }
+                }
+
+                printf("\nPRODUTO MAIS CARO\n");
+                printf("Codigo : %s\n", codigo[idx]);
+                printf("Produto: %s\n", nome[idx]);
+                printf("Peso   : %.2f kg\n", peso[idx]);
+                printf("Preco  : R$ %.2f\n", preco[idx]);
+
+                break;
+            }
+
+            case 4: {
+
+                int idx = 0;
+
+                for (int j = 1; j < TOTAL_PRODUTOS; j++) {
+                    if (peso[j] > peso[idx]) {
+                        idx = j;
+                    }
+                }
+
+                printf("\nPRODUTO MAIS PESADO\n");
+                printf("Codigo : %s\n", codigo[idx]);
+                printf("Produto: %s\n", nome[idx]);
+                printf("Peso   : %.2f kg\n", peso[idx]);
+                printf("Preco  : R$ %.2f\n", preco[idx]);
+
+                break;
+            }
+
+            case 5:
+
+                calcularPesoTotal();
+                break;
+
+            case 0:
+
+                printf("\nEncerrando o programa...\n");
+                printf("Obrigado por utilizar o sistema!\n");
+                break;
+
+            default:
+
+                printf("\nOpcao invalida! Tente novamente.\n");
+        }
+
+    } while (opcao != 0);
+
+    return 0;
+}
